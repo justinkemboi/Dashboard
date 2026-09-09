@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParcelGrid Dashboard</title>
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' rx='10' fill='%233b82f6'/><path d='M50 10 L90 30 L50 50 L10 30 Z' fill='%2360a5fa'/><path d='M10 30 L10 70 L50 90 L50 50 Z' fill='%232563eb'/><path d='M90 30 L90 70 L50 90 L50 50 Z' fill='%231e40af'/><text x='50' y='65' font-size='40' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'>P</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f0f4f8; --bg-card: #ffffff; --text-primary: #1a202c; --text-secondary: #4a5568; --text-muted: #718096; --border-color: #e2e8f0;
+            --accent-blue: #3b82f6; --accent-blue-light: #dbeafe; --accent-green: #10b981; --accent-green-light: #d1fae5; --accent-amber: #f59e0b; --accent-amber-light: #fef3c7;
+            --accent-red: #ef4444; --accent-red-light: #fee2e2; --accent-purple: #8b5cf6; --accent-purple-light: #ede9fe; --accent-cyan: #06b6d4; --accent-cyan-light: #cffafe;
+            --accent-teal: #14b8a6; --accent-teal-light: #ccfbf1; --accent-gray: #6b7280; --accent-gray-light: #f3f4f6;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07); --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --transition-fast: 0.1s ease;
+        }
+        body.dark-theme {
+            --bg-primary: #1a202c; --bg-card: #2d3748; --text-primary: #f7fafc; --text-secondary: #e2e8f0; --text-muted: #a0aec0; --border-color: #4a5568;
+            --accent-blue-light: #2c5282; --accent-green-light: #276749; --accent-amber-light: #975a16; --accent-red-light: #9b2c2c; --accent-purple-light: #553c9a;
+            --accent-cyan-light: #0987a0; --accent-teal-light: #285e61; --accent-gray-light: #4a5568;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:var(--bg-primary); color:var(--text-primary); min-height:100vh; padding:16px; display:flex; align-items:flex-start; justify-content:center; -webkit-font-smoothing:antialiased; }
+        .dashboard { width:100%; max-width:1600px; margin:0 auto; }
+        .dashboard-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+        .greeting-section { display:flex; align-items:center; gap:10px; }
+        .greeting-text { font-size:1.5rem; font-weight:800; }
+        .greeting-name { color:var(--accent-blue); }
+        .header-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .btn { padding:8px 14px; border-radius:var(--radius-sm); border:none; font-size:0.8rem; font-weight:600; cursor:pointer; transition:var(--transition-fast); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+        .btn:active { transform:scale(0.97); }
+        .btn-primary { background:var(--accent-blue); color:white; }
+        .btn-outline { background:var(--bg-card); color:var(--text-secondary); border:1.5px solid var(--border-color); }
+        .btn-return { background:var(--accent-red); color:white; padding:5px 10px; border-radius:6px; font-size:0.7rem; cursor:pointer; }
+        .btn-edit { background:var(--accent-amber); color:white; padding:5px 10px; border-radius:6px; border:none; font-size:0.7rem; cursor:pointer; }
+        .btn-delete { background:var(--accent-red); color:white; padding:5px 10px; border-radius:6px; border:none; font-size:0.7rem; cursor:pointer; }
+        .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+        .stat-card { border-radius:var(--radius-md); padding:14px 16px; box-shadow:var(--shadow-sm); }
+        .stat-card:nth-child(1) { background:linear-gradient(135deg,#667eea,#764ba2); }
+        .stat-card:nth-child(2) { background:linear-gradient(135deg,#f093fb,#f5576c); }
+        .stat-card:nth-child(3) { background:linear-gradient(135deg,#4facfe,#00f2fe); }
+        .stat-card:nth-child(4) { background:linear-gradient(135deg,#43e97b,#38f9d7); }
+        .stat-card:nth-child(5) { background:linear-gradient(135deg,#fa709a,#fee140); }
+        .stat-card:nth-child(6) { background:linear-gradient(135deg,#30cfd0,#330867); }
+        .stat-card:nth-child(7) { background:linear-gradient(135deg,#ff9966,#ff5e62); }
+        .stat-card:nth-child(8) { background:linear-gradient(135deg,#a8edea,#fed6e3); }
+        .stat-card .stat-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; color:rgba(255,255,255,0.9); }
+        .stat-card .stat-value { font-size:1.5rem; font-weight:800; color:#fff; }
+        .stat-card .stat-sub { font-size:0.7rem; color:rgba(255,255,255,0.85); }
+        .stat-card .stat-icon { float:right; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.2); color:#fff; }
+        .filter-bar { background:var(--bg-card); border-radius:var(--radius-md); padding:12px 16px; box-shadow:var(--shadow-sm); display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+        .search-box { flex:1; min-width:200px; position:relative; }
+        .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
+        .search-box input { width:100%; padding:8px 12px 8px 34px; border:1.5px solid var(--border-color); border-radius:var(--radius-sm); font-size:0.8rem; outline:none; background:var(--bg-primary); color:var(--text-primary); }
+        .filter-select { padding:8px 12px; border:1.5px solid var(--border-color); border-radius:var(--radius-sm); font-size:0.8rem; cursor:pointer; min-width:120px; background:var(--bg-primary); color:var(--text-secondary); }
+        .table-card { background:var(--bg-card); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); overflow:hidden; }
+        .table-header { display:flex; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border-color); }
+        .badge-count { background:var(--accent-blue-light); color:var(--accent-blue); padding:2px 8px; border-radius:20px; font-size:0.7rem; }
+        .table-wrapper { overflow-x:auto; max-height:60vh; overflow-y:auto; }
+        table { width:100%; border-collapse:collapse; min-width:1200px; }
+        thead { background:var(--bg-primary); position:sticky; top:0; }
+        thead th { padding:10px 14px; font-size:0.68rem; text-transform:uppercase; color:var(--text-muted); }
+        tbody tr { border-bottom:1px solid var(--border-color); }
+        tbody tr:hover { background:var(--bg-primary); }
+        tbody td { padding:10px 14px; font-size:0.78rem; white-space:nowrap; }
+        .tracking-cell { font-weight:600; color:var(--accent-blue); cursor:pointer; }
+        .customer-avatar { width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.7rem; color:white; }
+        .release-input { width:110px; padding:5px 8px; border:1.5px solid var(--border-color); border-radius:6px; font-size:0.75rem; background:var(--bg-primary); color:var(--text-primary); }
+        .status-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:16px; font-size:0.7rem; }
+        .status-badge .dot { width:5px; height:5px; border-radius:50%; }
+        .status-pending { background:var(--accent-amber-light); color:#92400e; } .status-pending .dot { background:var(--accent-amber); }
+        .status-collected { background:var(--accent-teal-light); color:#0f766e; } .status-collected .dot { background:var(--accent-teal); }
+        .status-returned { background:var(--accent-gray-light); color:#374151; } .status-returned .dot { background:var(--accent-gray); }
+        .status-delivered { background:var(--accent-green-light); color:#065f46; } .status-delivered .dot { background:var(--accent-green); }
+        .payment-badge { padding:4px 10px; border-radius:6px; font-size:0.7rem; font-weight:700; }
+        .payment-prepaid { background:var(--accent-cyan-light); color:#0e7490; }
+        .payment-cod { background:#fce7f3; color:#9d174d; }
+        .chatbot-toggle { position:fixed; bottom:24px; right:24px; width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple)); color:white; font-size:1.5rem; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:1000; border:none; }
+        .chatbot-panel { position:fixed; bottom:84px; right:24px; width:420px; max-width:calc(100vw - 32px); background:var(--bg-card); border-radius:var(--radius-lg); box-shadow:0 10px 30px rgba(0,0,0,0.2); z-index:999; display:none; flex-direction:column; overflow:hidden; }
+        .chatbot-header { background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple)); color:white; padding:12px 16px; font-weight:700; }
+        .chatbot-messages { padding:12px; overflow-y:auto; min-height:260px; max-height:380px; background:var(--bg-primary); }
+        .message { margin-bottom:10px; }
+        .message-bubble { padding:8px 12px; border-radius:12px; max-width:85%; font-size:0.8rem; line-height:1.5; white-space:pre-wrap; }
+        .message-bot .message-bubble { background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary); }
+        .message-user .message-bubble { background:var(--accent-blue); color:white; margin-left:auto; }
+        .chatbot-input-area { padding:10px 12px; display:flex; gap:8px; border-top:1px solid var(--border-color); }
+        .chatbot-input { flex:1; padding:8px 12px; border:1.5px solid var(--border-color); border-radius:var(--radius-sm); font-size:0.8rem; resize:none; min-height:36px; outline:none; background:var(--bg-primary); color:var(--text-primary); }
+        .chatbot-send { background:var(--accent-blue); color:white; border:none; border-radius:var(--radius-sm); padding:0 16px; cursor:pointer; }
+        .quick-actions { display:flex; gap:6px; padding:10px 12px; flex-wrap:wrap; border-bottom:1px solid var(--border-color); }
+        .quick-action-btn { padding:6px 10px; border:1px solid var(--border-color); border-radius:16px; font-size:0.7rem; cursor:pointer; background:var(--bg-primary); color:var(--text-secondary); }
+        .charts-row { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+        .chart-card { background:var(--bg-card); border-radius:var(--radius-md); padding:14px; box-shadow:var(--shadow-sm); }
+        .chart-card h3 { font-size:0.85rem; margin-bottom:10px; }
+        .chart-container { height:200px; }
+        #loginOverlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.7); z-index:2000; }
+        .login-box { width:min(400px,calc(100vw - 32px)); padding:30px; border-radius:var(--radius-lg); background:var(--bg-card); text-align:center; }
+        .login-box h2 { margin-bottom:8px; }
+        .login-box input { width:100%; padding:12px; margin-bottom:10px; border:1.5px solid var(--border-color); border-radius:var(--radius-sm); font-size:0.9rem; text-align:center; outline:none; background:var(--bg-primary); color:var(--text-primary); }
+        .password-input { letter-spacing:4px; font-weight:600; }
+        .dots-loader { position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:4000; display:none; align-items:center; justify-content:center; }
+        body.dark-theme .dots-loader { background:rgba(26,32,44,0.95); }
+        .bouncing-dots { display:flex; gap:10px; }
+        .bouncing-dots .dot { width:16px; height:16px; border-radius:50%; animation:bounce 0.6s ease-in-out infinite; }
+        .bouncing-dots .dot:nth-child(1) { background:#ef4444; }
+        .bouncing-dots .dot:nth-child(2) { background:#f97316; animation-delay:0.1s; }
+        .bouncing-dots .dot:nth-child(3) { background:#eab308; animation-delay:0.2s; }
+        .bouncing-dots .dot:nth-child(4) { background:#22c55e; animation-delay:0.3s; }
+        .bouncing-dots .dot:nth-child(5) { background:#3b82f6; animation-delay:0.4s; }
+        .bouncing-dots .dot:nth-child(6) { background:#8b5cf6; animation-delay:0.5s; }
+        @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-25px); } }
+        .loading-text { margin-top:20px; font-size:0.85rem; color:var(--text-secondary); font-weight:600; }
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; display:none; align-items:center; justify-content:center; }
+        .modal { background:var(--bg-card); border-radius:var(--radius-lg); padding:24px; width:min(500px,calc(100vw - 32px)); }
+        .modal h2 { margin-bottom:16px; }
+        .form-group { margin-bottom:12px; }
+        .form-group label { display:block; font-size:0.75rem; margin-bottom:4px; color:var(--text-secondary); }
+        .form-group input, .form-group select { width:100%; padding:8px 12px; border:1.5px solid var(--border-color); border-radius:var(--radius-sm); background:var(--bg-primary); color:var(--text-primary); outline:none; }
+        @media (max-width:768px) {
+            body { padding:8px; }
+            .greeting-text { font-size:1.2rem; }
+            .stats-row { grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
+            .stat-card { padding:10px 12px; }
+            .stat-card .stat-value { font-size:1.2rem; }
+            .chatbot-panel { right:8px; left:8px; width:auto; }
+            .charts-row { grid-template-columns:1fr; }
+            .chart-container { height:180px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dots-loader" id="dotsLoader">
+    <div style="text-align:center;">
+        <div class="bouncing-dots">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+        <div class="loading-text">Loading ParcelGrid...</div>
+    </div>
+</div>
+
+<div class="dashboard" id="dashboard" style="display:none;">
+    <div class="dashboard-header">
+        <div class="greeting-section">
+            <span class="greeting-icon" id="greetingIcon"></span>
+            <span class="greeting-text" id="greetingText"></span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-outline" onclick="migrateData()" id="migrateBtn" style="display:none;"><i class="fas fa-database"></i> Migrate Data</button>
+            <button class="btn btn-outline" onclick="toggleTheme()"><i class="fas fa-moon"></i> Theme</button>
+            <button class="btn btn-outline" onclick="document.getElementById('csvFileInput').click()"><i class="fas fa-file-csv"></i> Import</button>
+            <button class="btn btn-primary" onclick="openAddOrderModal()"><i class="fas fa-plus"></i> Add Order</button>
+            <button class="btn btn-outline" onclick="logout()"><i class="fas fa-right-from-bracket"></i> Sign out</button>
+        </div>
+        <input type="file" id="csvFileInput" accept=".csv" onchange="importCSV(this.files[0])" style="display:none;">
+    </div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="charts-row">
+        <div class="chart-card"><h3>Monthly Progress</h3><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div>
+        <div class="chart-card"><h3>Payment</h3><div class="chart-container"><canvas id="paymentChart"></canvas></div></div>
+        <div class="chart-card"><h3>Status</h3><div class="chart-container"><canvas id="statusChart"></canvas></div></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Search..." oninput="applyFilters()"></div>
+        <select class="filter-select" id="statusFilter" onchange="applyFilters()"><option value="all">All</option><option value="collected">Collected</option><option value="pending">Pending</option><option value="returned">Returned</option><option value="delivered">Delivered</option></select>
+        <select class="filter-select" id="paymentFilter" onchange="applyFilters()"><option value="all">All Payments</option><option value="prepaid">Prepaid</option><option value="cod">COD</option></select>
+        <button class="btn btn-outline" onclick="resetFilters()">Reset</button>
+    </div>
+
+    <div class="table-card">
+        <div class="table-header"><h2>Shipments <span class="badge-count" id="totalCount">0</span></h2><button class="btn btn-outline" onclick="refreshData()">Refresh</button></div>
+        <div class="table-wrapper"><table><thead><tr><th>Tracking</th><th>Customer</th><th>Release</th><th>Status</th><th>Added</th><th>Collected</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+        <div id="tableInfo" style="padding:10px 20px;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-muted);">Showing all entries</div>
+    </div>
+</div>
+
+<!-- Add Order Modal -->
+<div class="modal-overlay" id="addOrderModal">
+    <div class="modal">
+        <h2>Add New Order</h2>
+        <div id="modalError" style="color:red;font-size:0.75rem;margin-bottom:10px;display:none;"></div>
+        <div class="form-group"><label>Tracking Number</label><input type="text" id="modalTracking" placeholder="WELL#12345"></div>
+        <div class="form-group"><label>Customer Name</label><input type="text" id="modalCustomer" placeholder="Customer name"></div>
+        <div class="form-group"><label>Payment Type</label><select id="modalPayment"><option value="cod">COD</option><option value="prepaid">Pre-paid</option></select></div>
+        <button class="btn btn-primary" onclick="addOrderFromModal()">Add Order</button>
+        <button class="btn btn-outline" onclick="closeAddOrderModal()" style="margin-left:8px;">Cancel</button>
+    </div>
+</div>
+
+<!-- Edit Order Modal -->
+<div class="modal-overlay" id="editOrderModal">
+    <div class="modal">
+        <h2>Edit Order</h2>
+        <div class="form-group"><label>Tracking Number (read-only)</label><input type="text" id="editTracking" readonly style="background:var(--border-color);"></div>
+        <div class="form-group"><label>Customer Name</label><input type="text" id="editCustomer"></div>
+        <div class="form-group"><label>Payment Type</label><select id="editPayment"><option value="cod">COD</option><option value="prepaid">Pre-paid</option></select></div>
+        <div class="form-group"><label>Status</label><select id="editStatus"><option value="pending">Pending</option><option value="collected">Collected</option><option value="delivered">Delivered</option><option value="returned">Returned</option></select></div>
+        <div class="form-group"><label>Release Code</label><input type="text" id="editRelease"></div>
+        <button class="btn btn-primary" onclick="saveEditOrder()">Save Changes</button>
+        <button class="btn btn-outline" onclick="closeEditOrderModal()" style="margin-left:8px;">Cancel</button>
+    </div>
+</div>
+
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>🔐 ParcelGrid Login</h2>
+        <p>Enter username and password</p>
+        <input type="text" id="usernameInput" placeholder="Username" autocomplete="username">
+        <input type="password" id="passwordInput" placeholder="Password" class="password-input" autocomplete="current-password">
+        <div id="authError" style="color:red;font-size:0.75rem;margin:8px 0;min-height:20px;"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:0.9rem;" onclick="submitLogin()"><i class="fas fa-sign-in-alt"></i> Login</button>
+    </div>
+</div>
+
+<button class="chatbot-toggle" onclick="toggleChatbot()"><i class="fas fa-robot"></i></button>
+<div class="chatbot-panel" id="chatbotPanel">
+    <div class="chatbot-header"><i class="fas fa-robot"></i> AI Assistant</div>
+    <div class="quick-actions">
+        <button class="quick-action-btn" onclick="quickAction('help')">Help</button>
+        <button class="quick-action-btn" onclick="quickAction('list')">Stats</button>
+        <button class="quick-action-btn" onclick="quickAction('list returned')">Returns</button>
+        <button class="quick-action-btn" onclick="quickAction('list delivered')">Delivered</button>
+        <button class="quick-action-btn" onclick="quickAction('list collected')">Collected</button>
+        <button class="quick-action-btn" onclick="quickAction('list pending')">Pending</button>
+        <button class="quick-action-btn" onclick="quickAction('delete all')" style="color:red;">Delete All</button>
+    </div>
+    <div class="chatbot-messages" id="chatMessages">
+        <div class="message message-bot">
+            <div class="message-bubble">👋 Hello! I can help you manage orders.<br><br>Commands:<br>• 'list returned' - Show returned orders<br>• 'list delivered' - Show delivered orders<br>• 'delete TRACKING#' - Delete specific order<br>• 'delete all' - Delete all orders<br>• Paste orders to add them<br><br>Type 'help' for all commands.</div>
+        </div>
+    </div>
+    <div class="chatbot-input-area">
+        <textarea class="chatbot-input" id="chatInput" rows="2" placeholder="Type command or paste orders..."></textarea>
+        <button class="chatbot-send" onclick="handleUserInput()">Send</button>
+    </div>
+</div>
+
+<script>
+    // OLD Firebase config (source data)
+    const oldFirebaseConfig = {
+        apiKey: "AIzaSyCFngmrAH1i8seDVPrK7yEKjAtZIWGZdEs",
+        authDomain: "parcelgrid-b705f.firebaseapp.com",
+        projectId: "parcelgrid-b705f",
+        storageBucket: "parcelgrid-b705f.firebasestorage.app",
+        messagingSenderId: "509683032435",
+        appId: "1:509683032435:web:2c78b7eb6c3973a9e42506"
+    };
+
+    // NEW Firebase config (destination)
+    const newFirebaseConfig = {
+        apiKey: "AIzaSyD9OBl4dGPBtdTDnuNDDa9H3XOh-Xx4mME",
+        authDomain: "kitalebangokshop.firebaseapp.com",
+        projectId: "kitalebangokshop",
+        storageBucket: "kitalebangokshop.firebasestorage.app",
+        messagingSenderId: "14276659023",
+        appId: "1:14276659023:web:6eaa9d52180284d396273a",
+        measurementId: "G-J4SJTQF0JH"
+    };
+
+    // Initialize old app (for migration)
+    const oldApp = firebase.initializeApp(oldFirebaseConfig, 'oldApp');
+    const oldDb = firebase.firestore(oldApp);
+
+    // Initialize new app (main)
+    const newApp = firebase.initializeApp(newFirebaseConfig, 'newApp');
+    const db = firebase.firestore(newApp);
+
+    let ordersData = [], filteredData = [], currentUser = null, unsubscribeFirestore = null;
+    let editingTracking = null;
+    const loginSessionKey = 'parcelgridUser_v2';
+    const users = { 'Justin': '7744', 'Meshack': '4477' };
+
+    // ✅ FIXED: delete Firestore docs not present locally
+    async function saveToSharedDatabase() {
+        try {
+            const snapshot = await db.collection('orders').get();
+            const existingIds = snapshot.docs.map(d => d.id);
+            const localIds = new Set(ordersData.map(o => o.tracking));
+            
+            const batch = db.batch();
+            
+            existingIds.forEach(id => {
+                if (!localIds.has(id)) {
+                    batch.delete(db.collection('orders').doc(id));
+                }
+            });
+            
+            ordersData.forEach(order => {
+                batch.set(db.collection('orders').doc(order.tracking), order);
+            });
+            
+            await batch.commit();
+        } catch (e) {
+            console.error('Save error:', e);
+        }
+    }
+
+    async function loadFromSharedDatabase() { 
+        try { 
+            const snap = await db.collection('orders').get(); 
+            ordersData = []; 
+            snap.forEach(d => ordersData.push(d.data())); 
+            filteredData = [...ordersData]; 
+            // Show migration button if new db is empty but old db might have data
+            if (ordersData.length === 0) {
+                document.getElementById('migrateBtn').style.display = 'inline-flex';
+            } else {
+                document.getElementById('migrateBtn').style.display = 'none';
+            }
+        } catch(e) { 
+            ordersData=[]; filteredData=[]; 
+        } 
+    }
+
+    // Migration function: copy all orders from old project to new project
+    async function migrateData() {
+        if (!confirm('Migrate data from old project? This will copy all orders.')) return;
+        try {
+            document.getElementById('migrateBtn').disabled = true;
+            const oldSnapshot = await oldDb.collection('orders').get();
+            if (oldSnapshot.empty) {
+                alert('No data found in old project.');
+                document.getElementById('migrateBtn').disabled = false;
+                return;
+            }
+            const batch = db.batch();
+            oldSnapshot.forEach(doc => {
+                const data = doc.data();
+                batch.set(db.collection('orders').doc(doc.id), data);
+            });
+            await batch.commit();
+            alert(`Migrated ${oldSnapshot.size} orders successfully!`);
+            await loadFromSharedDatabase();
+            refreshAllViews();
+            document.getElementById('migrateBtn').style.display = 'none';
+        } catch (error) {
+            console.error('Migration error:', error);
+            alert('Migration failed. Check console.');
+            document.getElementById('migrateBtn').disabled = false;
+        }
+    }
+
+    function setupRealtimeSync() { 
+        if(unsubscribeFirestore) unsubscribeFirestore(); 
+        unsubscribeFirestore = db.collection('orders').onSnapshot(snap => { 
+            const changes = snap.docChanges(); 
+            if(!changes.length) return; 
+            changes.forEach(c => { 
+                const o = c.doc.data(); 
+                const idx = ordersData.findIndex(x => x.tracking === o.tracking); 
+                if(c.type === 'removed'){ if(idx>=0) ordersData.splice(idx,1); } 
+                else { if(idx>=0) ordersData[idx]=o; else ordersData.push(o); } 
+            }); 
+            filteredData = [...ordersData]; 
+            refreshAllViews(); 
+        }); 
+    }
+
+    function showDotsLoader() { document.getElementById('dotsLoader').style.display = 'flex'; document.getElementById('dashboard').style.display = 'none'; }
+    function hideDotsLoader() { setTimeout(() => { document.getElementById('dotsLoader').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }, 800); }
+
+    async function submitLogin() {
+        const username = document.getElementById('usernameInput').value.trim();
+        const password = document.getElementById('passwordInput').value.trim();
+        const errorEl = document.getElementById('authError');
+        if (!username || !password) { errorEl.textContent = 'Enter username and password'; return; }
+        const user = Object.keys(users).find(u => u.toLowerCase() === username.toLowerCase());
+        if (!user) { errorEl.textContent = 'Invalid username'; return; }
+        if (users[user] !== password) { errorEl.textContent = 'Invalid password'; return; }
+        currentUser = user;
+        localStorage.setItem(loginSessionKey, user);
+        errorEl.textContent = '';
+        showDotsLoader();
+        await loadFromSharedDatabase();
+        document.getElementById('loginOverlay').style.display = 'none';
+        setupRealtimeSync();
+        refreshAllViews();
+        updateGreeting();
+        hideDotsLoader();
+    }
+
+    async function checkLogin() {
+        const saved = localStorage.getItem(loginSessionKey);
+        if (saved && users[saved]) {
+            currentUser = saved;
+            await loadFromSharedDatabase();
+            document.getElementById('loginOverlay').style.display = 'none';
+            setupRealtimeSync();
+            refreshAllViews();
+            updateGreeting();
+            document.getElementById('dashboard').style.display = 'block';
+        } else {
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+    }
+
+    function logout() {
+        if(unsubscribeFirestore){unsubscribeFirestore();unsubscribeFirestore=null;}
+        localStorage.removeItem(loginSessionKey);
+        currentUser = null;
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('authError').textContent = '';
+    }
+
+    // Add Order Modal
+    function openAddOrderModal(){ document.getElementById('addOrderModal').style.display='flex'; document.getElementById('modalError').style.display='none'; }
+    function closeAddOrderModal(){ document.getElementById('addOrderModal').style.display='none'; document.getElementById('modalTracking').value=''; document.getElementById('modalCustomer').value=''; }
+    async function addOrderFromModal(){
+        const t=document.getElementById('modalTracking').value.trim();
+        const c=document.getElementById('modalCustomer').value.trim();
+        const p=document.getElementById('modalPayment').value;
+        const errorEl = document.getElementById('modalError');
+        if(!t||!c){ errorEl.textContent='Fill all fields'; errorEl.style.display='block'; return; }
+        const existing = ordersData.find(o => o.tracking.toLowerCase() === t.toLowerCase());
+        if(existing){ errorEl.innerHTML = `❌ Tracking number "${t}" already exists!<br>Customer: ${existing.customer}`; errorEl.style.display='block'; return; }
+        const now=new Date().toISOString();
+        ordersData.push({tracking:t,customer:c,payment:p,release:'',status:'pending',dateAdded:now,dateCollected:'',batchMonth:'',createdBy:currentUser});
+        filteredData=[...ordersData];
+        await saveToSharedDatabase();
+        refreshAllViews();
+        closeAddOrderModal();
+    }
+
+    // Edit Order Modal
+    function openEditOrderModal(tracking){
+        const order = ordersData.find(o => o.tracking === tracking);
+        if(!order) return;
+        editingTracking = tracking;
+        document.getElementById('editTracking').value = order.tracking;
+        document.getElementById('editCustomer').value = order.customer;
+        document.getElementById('editPayment').value = order.payment;
+        document.getElementById('editStatus').value = order.status;
+        document.getElementById('editRelease').value = order.release || '';
+        document.getElementById('editOrderModal').style.display='flex';
+    }
+    function closeEditOrderModal(){ document.getElementById('editOrderModal').style.display='none'; editingTracking = null; }
+    async function saveEditOrder(){
+        if(!editingTracking) return;
+        const order = ordersData.find(o => o.tracking === editingTracking);
+        if(!order) return;
+        order.customer = document.getElementById('editCustomer').value.trim();
+        order.payment = document.getElementById('editPayment').value;
+        order.status = document.getElementById('editStatus').value;
+        order.release = document.getElementById('editRelease').value.trim();
+        order.updatedBy = currentUser;
+        order.updatedAt = new Date().toISOString();
+        if(order.status === 'collected' && order.release && !order.dateCollected){ order.dateCollected = new Date().toISOString(); order.batchMonth = order.dateCollected; }
+        if(order.status === 'pending'){ order.dateCollected = ''; order.batchMonth = ''; }
+        if(order.status === 'returned' && !order.dateCollected){ order.dateCollected = new Date().toISOString(); order.batchMonth = order.dateCollected; }
+        await saveToSharedDatabase();
+        refreshAllViews();
+        closeEditOrderModal();
+    }
+
+    // Delete Order
+    async function deleteOrderFromTable(tracking){
+        if(!confirm(`Delete order ${tracking}?`)) return;
+        ordersData = ordersData.filter(o => o.tracking !== tracking);
+        filteredData = [...ordersData];
+        await saveToSharedDatabase();
+        refreshAllViews();
+    }
+
+    function refreshAllViews(){ renderStats(filteredData); renderTable(filteredData); renderCharts(); updateGreeting(); }
+    function refreshData(){ loadFromSharedDatabase().then(refreshAllViews); }
+    function toggleTheme(){ document.body.classList.toggle('dark-theme'); localStorage.setItem('theme',document.body.classList.contains('dark-theme')?'dark':'light'); }
+
+    function calcStats(data){
+        const total=data.length;
+        const collected=data.filter(o=>o.status==='collected').length;
+        const delivered=data.filter(o=>o.status==='delivered').length;
+        const pending=data.filter(o=>o.status==='pending').length;
+        const returned=data.filter(o=>o.status==='returned').length;
+        const prepaid=data.filter(o=>o.payment==='prepaid').length;
+        const cod=data.filter(o=>o.payment==='cod').length;
+        const todayStr=new Date().toISOString().substring(0,10);
+        const receivedToday=data.filter(o=>o.dateAdded&&o.dateAdded.substring(0,10)===todayStr).length;
+        const collectedToday=data.filter(o=>o.status==='collected'&&o.dateCollected&&o.dateCollected.substring(0,10)===todayStr).length;
+        const activeDays=new Set(data.map(o=>o.dateAdded?o.dateAdded.substring(0,10):null).filter(Boolean));
+        const avgPerDay=(total/(activeDays.size||1)).toFixed(1);
+        return { total, collected, delivered, pending, returned, prepaid, cod, receivedToday, collectedToday, avgPerDay };
+    }
+
+    function renderStats(data){
+        const s=calcStats(data);
+        document.getElementById('statsRow').innerHTML=`
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-box"></i></div><div class="stat-label">Total</div><div class="stat-value">${s.total}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-double"></i></div><div class="stat-label">Collected</div><div class="stat-value">${s.collected}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-label">Pending</div><div class="stat-value">${s.pending}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-undo-alt"></i></div><div class="stat-label">Returns</div><div class="stat-value">${s.returned}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-credit-card"></i></div><div class="stat-label">Prepaid</div><div class="stat-value">${s.prepaid}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-cash-register"></i></div><div class="stat-label">COD</div><div class="stat-value">${s.cod}</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-inbox"></i></div><div class="stat-label">Received Today</div><div class="stat-value">${s.receivedToday}</div><div class="stat-sub">Avg ${s.avgPerDay}/day</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-label">Collected Today</div><div class="stat-value">${s.collectedToday}</div><div class="stat-sub">Today's pickups</div></div>
+        `;
+    }
+
+    function renderTable(data){
+        const tbody=document.getElementById('tableBody');
+        if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;">No orders yet</td></tr>';}
+        else{
+            const sorted=[...data].sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1));
+            tbody.innerHTML=sorted.map(o=>{
+                const init=getInitials(o.customer), color=avatarColors[o.customer.charCodeAt(0)%avatarColors.length];
+                const sc=`status-${o.status}`, pc=o.payment==='prepaid'?'payment-prepaid':'payment-cod', pl=o.payment==='prepaid'?'Prepaid':'COD';
+                const added=formatDateTime(o.dateAdded), coll=formatDateTime(o.dateCollected);
+                return `<tr><td class="tracking-cell" onclick="copyTracking('${o.tracking}')">${o.tracking}</td><td><div style="display:flex;align-items:center;gap:8px;"><div class="customer-avatar" style="background:${color}">${init}</div>${o.customer}</div></td><td><input class="release-input" value="${o.release||''}" onkeydown="if(event.key==='Enter'){updateReleaseCode('${o.tracking}',this.value);resetFilters();}" ${o.status==='returned'?'disabled':''}></td><td><span class="status-badge ${sc}"><span class="dot"></span>${o.status}</span></td><td>${added.date} ${added.time}</td><td>${coll.date} ${coll.time}</td><td><span class="payment-badge ${pc}">${pl}</span></td><td><div style="display:flex;gap:5px;"><button class="btn-edit" onclick="openEditOrderModal('${o.tracking}')"><i class="fas fa-edit"></i></button><button class="btn-delete" onclick="deleteOrderFromTable('${o.tracking}')"><i class="fas fa-trash"></i></button><button class="btn-return" onclick="markAsReturned('${o.tracking}')" ${o.status==='returned'?'disabled':''}>Return</button></div></td></tr>`;
+            }).join('');
+        }
+        document.getElementById('totalCount').textContent=data.length;
+        document.getElementById('tableInfo').textContent=`Showing ${data.length} entries`;
+    }
+
+    async function updateReleaseCode(tracking,val){ const o=ordersData.find(x=>x.tracking===tracking); if(!o||o.status==='returned')return; o.release=val.trim(); if(o.release){o.status='collected';o.dateCollected=new Date().toISOString();o.batchMonth=o.dateCollected;}else if(o.status==='collected'){o.status='pending';o.dateCollected='';o.batchMonth='';} await saveToSharedDatabase(); refreshAllViews(); }
+    async function markAsReturned(tracking){ const o=ordersData.find(x=>x.tracking===tracking); if(!o||o.status==='returned')return; o.status='returned';o.dateCollected=new Date().toISOString();o.batchMonth=o.dateCollected; await saveToSharedDatabase(); refreshAllViews(); }
+
+    function applyFilters(){ const s=document.getElementById('searchInput').value.toLowerCase().trim(), st=document.getElementById('statusFilter').value, pt=document.getElementById('paymentFilter').value; filteredData=ordersData.filter(o=>(!s||o.tracking.toLowerCase().includes(s)||o.customer.toLowerCase().includes(s)||(o.release||'').toLowerCase().includes(s))&&(st==='all'||o.status===st)&&(pt==='all'||o.payment===pt)); renderStats(filteredData); renderTable(filteredData); }
+    function resetFilters(){ document.getElementById('searchInput').value=''; document.getElementById('statusFilter').value='all'; document.getElementById('paymentFilter').value='all'; filteredData=[...ordersData]; renderStats(filteredData); renderTable(filteredData); }
+
+    const avatarColors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#ec4899','#14b8a6','#f97316','#6366f1'];
+    function getInitials(n){const p=n.split(' ');return p.length>1?p[0][0]+p[1][0]:n.substring(0,2).toUpperCase();}
+    function formatDateTime(iso){if(!iso)return{date:'—',time:'—'};const d=new Date(iso);return{date:d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),time:d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})};}
+    function copyTracking(t){navigator.clipboard.writeText(t);}
+
+    function updateGreeting(){const h=new Date().getHours();const g=h<12?['Good morning','🌅']:h<18?['Good afternoon','☀️']:['Good evening','🌙'];document.getElementById('greetingText').innerHTML=`${g[0]}, <span class="greeting-name">${currentUser||'User'}</span>`;document.getElementById('greetingIcon').textContent=g[1];}
+
+    let mc,pc,sc2;
+    function renderCharts(){
+        const yr=new Date().getFullYear(), mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const rec=Array(12).fill(0),col=Array(12).fill(0),ret=Array(12).fill(0),pen=Array(12).fill(0);
+        ordersData.forEach(o=>{if(o.dateAdded){const d=new Date(o.dateAdded);if(d.getFullYear()===yr)rec[d.getMonth()]++;}if(o.status==='collected'&&o.dateCollected){const d=new Date(o.dateCollected);if(d.getFullYear()===yr)col[d.getMonth()]++;}if(o.status==='returned'&&o.dateCollected){const d=new Date(o.dateCollected);if(d.getFullYear()===yr)ret[d.getMonth()]++;}if(o.status==='pending'&&o.dateAdded){const d=new Date(o.dateAdded);if(d.getFullYear()===yr)pen[d.getMonth()]++;}});
+        const pre=ordersData.filter(o=>o.payment==='prepaid').length,cod=ordersData.filter(o=>o.payment==='cod').length;
+        if(mc)mc.destroy();if(pc)pc.destroy();if(sc2)sc2.destroy();
+        mc=new Chart(document.getElementById('monthlyChart'),{type:'bar',data:{labels:mn,datasets:[{label:'Received',data:rec,backgroundColor:'rgba(59,130,246,0.7)'},{label:'Collected',data:col,backgroundColor:'rgba(16,185,129,0.7)'},{label:'Returned',data:ret,backgroundColor:'rgba(107,114,128,0.7)'},{label:'Pending',data:pen,backgroundColor:'rgba(245,158,11,0.7)'}]},options:{responsive:true,maintainAspectRatio:false}});
+        pc=new Chart(document.getElementById('paymentChart'),{type:'pie',data:{labels:['Prepaid','COD'],datasets:[{data:[pre,cod],backgroundColor:['rgba(6,182,212,0.7)','rgba(236,72,153,0.7)']}]},options:{responsive:true,maintainAspectRatio:false}});
+        sc2=new Chart(document.getElementById('statusChart'),{type:'pie',data:{labels:['Collected','Returned','Pending'],datasets:[{data:[col.reduce((a,b)=>a+b,0),ret.reduce((a,b)=>a+b,0),pen.reduce((a,b)=>a+b,0)],backgroundColor:['rgba(16,185,129,0.7)','rgba(107,114,128,0.7)','rgba(245,158,11,0.7)']}]},options:{responsive:true,maintainAspectRatio:false}});
+    }
+
+    function toggleChatbot(){const p=document.getElementById('chatbotPanel');p.style.display=p.style.display==='flex'?'none':'flex';}
+    function addMessage(s,d){const m=document.createElement('div');m.className=`message message-${s}`;m.innerHTML=`<div class="message-bubble">${d}</div>`;document.getElementById('chatMessages').appendChild(m);document.getElementById('chatMessages').scrollTop=9999;}
+    function quickAction(a){document.getElementById('chatInput').value=a;handleUserInput();}
+    
+    function normalizeStatus(value) {
+        const normalized = String(value || '').toLowerCase().replace(/[_-]/g, ' ').trim();
+        const aliases = { collected: 'collected', picked: 'collected', delivered: 'delivered', complete: 'delivered', completed: 'delivered', pending: 'pending', awaiting: 'pending', cancelled: 'cancelled', canceled: 'cancelled', hold: 'hold', 'on hold': 'hold', returned: 'returned', return: 'returned' };
+        return aliases[normalized] || null;
+    }
+    
+    async function handleUserInput(){
+        const input=document.getElementById('chatInput'), text=input.value.trim();
+        if(!text)return;
+        addMessage('user',text); input.value='';
+        const lower=text.toLowerCase();
+        
+        if(lower==='help'){
+            addMessage('bot',`📚 <strong>Commands:</strong><br><br>📋 <strong>List:</strong><br>• 'list returned' • 'list delivered'<br>• 'list collected' • 'list pending'<br>• 'list' or 'stats'<br><br>📝 <strong>Add:</strong><br>Paste: TRACKING# – Customer – Payment<br><br>🗑️ <strong>Delete:</strong><br>• 'delete TRACKING#' - Specific order<br>• 'delete all' - All orders<br>• 'delete all pending' • 'delete all returned'<br>• 'delete all collected' • 'delete all delivered'<br>• 'delete all prepaid' • 'delete all cod'<br>• 'delete TRACK1, TRACK2' - Multiple`);
+            return;
+        }
+        
+        if(lower.startsWith('delete ')){
+            const target = text.substring(7).trim().toLowerCase();
+            if(target === 'all'){
+                if(confirm('Delete ALL orders?')){
+                    ordersData=[];filteredData=[];
+                    await saveToSharedDatabase();
+                    refreshAllViews();
+                    addMessage('bot','✅ Deleted all orders');
+                }
+                return;
+            }
+            if(target.startsWith('all ')){
+                const sub = target.substring(4).trim();
+                const status = normalizeStatus(sub);
+                if(status){
+                    const count = ordersData.filter(o => o.status === status).length;
+                    if(count === 0){ addMessage('bot',`📭 No ${status} orders.`); }
+                    else if(confirm(`Delete ${count} ${status} orders?`)){
+                        ordersData = ordersData.filter(o => o.status !== status);
+                        filteredData = [...ordersData];
+                        await saveToSharedDatabase();
+                        refreshAllViews();
+                        addMessage('bot',`✅ Deleted ${count} ${status} orders`);
+                    }
+                    return;
+                }
+                if(sub === 'prepaid' || sub === 'cod'){
+                    const count = ordersData.filter(o => o.payment === sub).length;
+                    if(count === 0){ addMessage('bot',`📭 No ${sub} orders.`); }
+                    else if(confirm(`Delete ${count} ${sub} orders?`)){
+                        ordersData = ordersData.filter(o => o.payment !== sub);
+                        filteredData = [...ordersData];
+                        await saveToSharedDatabase();
+                        refreshAllViews();
+                        addMessage('bot',`✅ Deleted ${count} ${sub} orders`);
+                    }
+                    return;
+                }
+            }
+            const trackings = target.split(/[,;]/).map(t => t.trim()).filter(Boolean);
+            if(trackings.length > 0){
+                let deletedCount = 0;
+                const deletedTrackings = [];
+                for(const tracking of trackings){
+                    const idx = ordersData.findIndex(o => o.tracking.toLowerCase() === tracking.toLowerCase());
+                    if(idx >= 0){
+                        const order = ordersData[idx];
+                        ordersData.splice(idx, 1);
+                        deletedCount++;
+                        deletedTrackings.push(order.tracking);
+                    }
+                }
+                if(deletedCount === 0){ addMessage('bot','❌ No matching orders found.'); }
+                else { filteredData = [...ordersData]; await saveToSharedDatabase(); refreshAllViews(); addMessage('bot',`✅ Deleted ${deletedCount}:<br>${deletedTrackings.join('<br>')}`); }
+                return;
+            }
+        }
+        
+        if(lower==='list returned' || lower==='returned' || lower==='returns'){
+            const list = ordersData.filter(o => o.status === 'returned');
+            if(!list.length){ addMessage('bot','📭 No returned orders.'); }
+            else { let r = `📋 <strong>Returned (${list.length})</strong><br><br>`; list.forEach((o,i) => r += `${i+1}. ${o.tracking} – ${o.customer}<br>`); addMessage('bot', r); }
+            return;
+        }
+        if(lower==='list delivered' || lower==='delivered'){
+            const list = ordersData.filter(o => o.status === 'delivered');
+            if(!list.length){ addMessage('bot','📭 No delivered orders.'); }
+            else { let r = `📋 <strong>Delivered (${list.length})</strong><br><br>`; list.forEach((o,i) => r += `${i+1}. ${o.tracking} – ${o.customer}<br>`); addMessage('bot', r); }
+            return;
+        }
+        if(lower==='list collected' || lower==='collected'){
+            const list = ordersData.filter(o => o.status === 'collected');
+            if(!list.length){ addMessage('bot','📭 No collected orders.'); }
+            else { let r = `📋 <strong>Collected (${list.length})</strong><br><br>`; list.forEach((o,i) => r += `${i+1}. ${o.tracking} – ${o.customer}<br>`); addMessage('bot', r); }
+            return;
+        }
+        if(lower==='list pending' || lower==='pending'){
+            const list = ordersData.filter(o => o.status === 'pending');
+            if(!list.length){ addMessage('bot','📭 No pending orders.'); }
+            else { let r = `📋 <strong>Pending (${list.length})</strong><br><br>`; list.forEach((o,i) => r += `${i+1}. ${o.tracking} – ${o.customer}<br>`); addMessage('bot', r); }
+            return;
+        }
+        if(lower==='list' || lower==='stats'){
+            const s=calcStats(ordersData);
+            addMessage('bot',`📊 <strong>Stats:</strong><br>Total: ${s.total}<br>Pending: ${s.pending}<br>Collected: ${s.collected}<br>Returned: ${s.returned}<br>Delivered: ${s.delivered}`);
+            return;
+        }
+        
+        const lines=text.split('\n').filter(l=>l.trim());
+        if(lines.length&&lines[0].includes('#')){
+            const now=new Date().toISOString();
+            let added = 0, duplicates = 0;
+            lines.forEach(l=>{
+                const p=l.split(/[–—|-]/).map(x=>x.trim()).filter(Boolean);
+                if(p.length>=3){
+                    const exists = ordersData.find(o => o.tracking.toLowerCase() === p[0].toLowerCase());
+                    if(exists){ duplicates++; }
+                    else { ordersData.push({tracking:p[0],customer:p[1],payment:p[2].toLowerCase().includes('pre')?'prepaid':'cod',release:'',status:'pending',dateAdded:now,dateCollected:'',batchMonth:'',createdBy:currentUser}); added++; }
+                }
+            });
+            filteredData=[...ordersData];
+            await saveToSharedDatabase();
+            refreshAllViews();
+            if(duplicates > 0){
+                addMessage('bot',`✅ Added ${added} orders. ⚠️ ${duplicates} duplicate(s) skipped.`);
+            } else {
+                addMessage('bot',`✅ Added ${added} orders. Total: ${ordersData.length}`);
+            }
+            return;
+        }
+        addMessage('bot','Type "help" for commands.');
+    }
+
+    function importCSV(file){if(!file)return;const reader=new FileReader();reader.onload=async e=>{const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2)return;const now=new Date().toISOString();let added=0,dup=0;lines.slice(1).forEach(l=>{const c=l.split(',');if(c.length>=3){const exists=ordersData.find(o=>o.tracking.toLowerCase()===c[0].trim().toLowerCase());if(exists){dup++;}else{ordersData.push({tracking:c[0].trim(),customer:c[1].trim(),payment:c[2].toLowerCase().includes('pre')?'prepaid':'cod',release:c[3]?.trim()||'',status:c[3]?.trim()?'collected':'pending',dateAdded:now,dateCollected:c[3]?.trim()?now:'',batchMonth:c[3]?.trim()?now:'',createdBy:currentUser});added++;}}});filteredData=[...ordersData];await saveToSharedDatabase();refreshAllViews();alert(`CSV: ${added} added, ${dup} duplicates skipped.`);};reader.readAsText(file);}
+
+    document.addEventListener('DOMContentLoaded',()=>{
+        checkLogin();
+        document.getElementById('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleUserInput();}});
+        document.getElementById('passwordInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitLogin();});
+        document.getElementById('usernameInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('passwordInput').focus();});
+        if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-theme');
+    });
+</script>
+</body>
+</html>
