@@ -6,6 +6,10 @@
     <title>Kitale Bangok Shop — ParcelGrid</title>
     <meta name="theme-color" content="#00473E">
     <meta name="description" content="ParcelGrid dashboard — COD delivery management for online vendors.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' rx='10' fill='%2300473E'/><path d='M50 10 L90 30 L50 50 L10 30 Z' fill='%23005F52'/><path d='M10 30 L10 70 L50 90 L50 50 Z' fill='%23002E28'/><path d='M90 30 L90 70 L50 90 L50 50 Z' fill='%23001A16'/><text x='50' y='66' font-size='42' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'>K</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -270,16 +274,52 @@
         body.dark-theme .report-preview strong { color:var(--accent-blue); }
         .report-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         @media (max-width:768px) {
-            body { padding:8px; }
-            .greeting-text { font-size:1.1rem; }
-            .stats-row { grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
-            .stat-card { padding:10px 12px; }
-            .stat-card .stat-value { font-size:1.2rem; }
-            .chatbot-panel { right:8px; left:8px; width:auto; }
-            .charts-row { grid-template-columns:1fr; }
-            .chart-container { height:180px; }
+            :root { --radius-md:10px; --radius-lg:12px; }
+            body { padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom); overflow-x:hidden; }
+            .dashboard { width:100%; }
+            .dashboard-header { margin-bottom:12px; gap:8px; }
+            .greeting-section { min-width:0; gap:8px; }
+            .greeting-text { font-size:1.05rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .greeting-icon { flex-shrink:0; }
+            .hamburger-btn, .btn { min-height:44px; }
+            .stats-row { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+            .stat-card { min-width:0; padding:10px; }
+            .stat-card .stat-label { font-size:0.62rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .stat-card .stat-value { font-size:1.15rem; }
+            .stat-card .stat-sub { font-size:0.62rem; }
+            .stat-card .stat-icon { width:26px; height:26px; font-size:0.8rem; }
+            .charts-row { grid-template-columns:1fr; gap:8px; margin-bottom:12px; }
+            .chart-card { padding:12px; }
+            .chart-container { height:170px; }
+            .filter-bar { padding:10px; gap:8px; margin-bottom:12px; }
+            .search-box { min-width:100%; }
+            .filter-select { flex:1; min-width:0; min-height:44px; }
+            .filter-bar .btn { flex:0 0 auto; }
+            .table-card { border-radius:var(--radius-md); }
+            .table-header { align-items:center; padding:12px; }
+            .table-header h2 { font-size:1rem; }
+            .table-header .btn { min-height:40px; padding:8px 10px; }
+            .table-wrapper { max-height:none; -webkit-overflow-scrolling:touch; }
+            table { min-width:980px; }
+            .chatbot-toggle { right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); width:56px; height:56px; }
+            .chatbot-panel { right:8px; left:8px; bottom:calc(80px + env(safe-area-inset-bottom)); width:auto; max-width:none; max-height:calc(100dvh - 100px); }
+            .chatbot-messages { min-height:180px; max-height:40dvh; }
+            .chatbot-input { font-size:16px; }
+            .quick-action-btn { min-height:36px; }
             .report-grid { grid-template-columns:1fr; }
-            .side-panel { width:80vw; }
+            .side-panel { width:min(320px,88vw); padding-bottom:env(safe-area-inset-bottom); }
+            .modal-overlay { align-items:flex-end; padding:0; }
+            .modal { width:100%; max-height:92dvh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; padding:20px 16px calc(20px + env(safe-area-inset-bottom)); }
+            .modal .btn { min-height:44px; }
+            .form-group input, .form-group select, .login-box input { min-height:46px; font-size:16px; }
+            #loginOverlay { align-items:flex-end; padding:0; }
+            .login-box { width:100%; border-radius:var(--radius-lg) var(--radius-lg) 0 0; padding:24px 16px calc(24px + env(safe-area-inset-bottom)); }
+        }
+
+        @media (max-width:380px) {
+            .greeting-text { max-width:190px; }
+            .stat-card .stat-value { font-size:1rem; }
+            .filter-select { font-size:0.72rem; padding-left:8px; padding-right:8px; }
         }
     </style>
 </head>
@@ -1278,6 +1318,10 @@
         // Set footer year
         document.getElementById('sidePanelYear').textContent = new Date().getFullYear();
     });
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
 </script>
 </body>
 </html>
